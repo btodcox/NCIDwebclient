@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>NCIDwebclient</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css">
+    <script src="http://code.jquery.com/jquery-1.11.3.min.js"></script>
+    <script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
+    <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+<!--    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
+      form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
+      form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
+      #messages { list-style-type: none; margin: 0; padding: 0; }
+      #messages li { padding: 5px 10px; }
+      #messages li:nth-child(odd) { background: #eee; }
+    </style> -->
+  </head>
+  <body>
+    <div data-role="page" id="page1">
+      <div data-role="header" data-theme="b">
+        <h1>NCIDwebclient</h1>
+      </div>
+      <div data-role="content">
+        <table data-role="table" id="calllog" data-mode="reflow" class="ui-responsive table-stripe">
+          <thead>
+            <th data-priority="1">Type</th>
+            <th data-priority="2">Date/Time</th>
+            <th data-priority="5">Line</th>
+            <th data-priority="persist">Number</th>
+            <th data-priority="persist">Name</th>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+<!--    <ul id="messages"></ul>
+    <form action="">
+      <input id="m" autocomplete="off" /><button>Send</button>
+    </form>
+    <script src="http://code.jquery.com/jquery-1.11.1.js"></script> -->
+    <script>
+      var socket = io();
+//      $('form').submit(function(){
+//        socket.emit('user message', $('#m').val());
+//        $('#m').val('');
+//        return false;
+ //     }); 
+      socket.on('ncidCMD', function(msg){
+      		if (msg === "clear"){
+      		$('#calllog > tbody').html("");
+      	}
+      });
+      socket.on('ncidInfo', function(msg){
+        var trowData = '';
+        console.log(msg);
+        msg = $.parseJSON(msg); // convert stringified packet back to JSON
+
+        trowData = '<tr><td>' + msg.ncidtype  +'</td>';
+        trowData +=  '<td>' + msg.date + ' ' + msg.time  +'</td>'; 
+
+        switch (msg.ncidtype) {
+          case "CID":
+          case "PID":
+          case "OUT":
+          case "BLK":
+          case "HUP":
+          case "WID":  //"call" type information in packet
+            trowData +=  '<td>' + msg.line  +'</td>';
+            trowData +=  '<td>' + msg.nmbr  +'</td>';
+            trowData +=  '<td>' + msg.name  +'</td></tr>';
+            break;  
+          case "MSG":
+          case "NOT":  //"message" type information in packet
+            trowData += '<td colspan="3">' + msg.mesg + '</td></tr>'; 
+            console.log(trowData);
+            break;
+          default:
+              console.log("unknown packet");
+            return 0; // packet type that we don't care about for now, packet headed for bit-bucket
+        }
+        $('table#calllog tbody').prepend(trowData)
+        .closest("table#calllog")
+        .table("refresh")
+        .trigger("create");
+ //       $('#messages').prepend($('<li>').text(msg));
+      });
+    </script>
+  </body>
+</html>
