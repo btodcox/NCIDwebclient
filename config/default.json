@@ -1,0 +1,7 @@
+{
+	"NCIDserver": "localhost",
+	"port": 3333,
+	"reconnectTime":10000,
+	"NCIDwebclientPort":3000,
+	"time12Hr":false
+}

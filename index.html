@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <link rel="shortcut icon" href="favicon.ico"/>
     <title>NCIDwebclient</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,61 +9,102 @@
     <script src="http://code.jquery.com/jquery-1.11.3.min.js"></script>
     <script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
     <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
-<!--    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font: 13px Helvetica, Arial; }
-      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
-      form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
-      form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
-      #messages { list-style-type: none; margin: 0; padding: 0; }
-      #messages li { padding: 5px 10px; }
-      #messages li:nth-child(odd) { background: #eee; }
-    </style> -->
+
   </head>
   <body>
     <div data-role="page" id="page1">
       <div data-role="header" data-theme="b">
         <h1>NCIDwebclient</h1>
       </div>
+      <div class="ui-grid-a">
+        <div class="ui-block-a" data-role="content" align="left">
+          <div id="nciddStatus"><p>Updating...</p></div>
+        </div>
+        <div class="ui-block-b" align="right">
+          <a href='#popupMessage' data-icon="edit" data-rel="popup" class="ui-btn ui-btn-inline ui-corner-all">Send Message</a> 
+        </div> 
+        <div data-role="popup" id="popupMessage">
+              <form>
+        <div style="padding:10px 20px;">
+            <h3>Send message to NCID server:</h3>
+            <label for="ncidMsg" class="ui-hidden-accessible">Type message here</label>
+            <input type="text" name="user" id="ncidMsg" value="" placeholder="message" data-theme="a">
+            <button class="mySubmit" id="ncidSendMessage" class="ui-btn ui-corner-all ui-shadow ui-btn-b ui-btn-icon-left ui-icon-check">Send Message</button>
+        </div>
+    </form>
+        </div>  
+      </div>
+
       <div data-role="content">
         <table data-role="table" id="calllog" data-mode="reflow" class="ui-responsive table-stripe">
           <thead>
             <th data-priority="1">Type</th>
             <th data-priority="2">Date/Time</th>
             <th data-priority="5">Line</th>
-            <th data-priority="persist">Number</th>
+            <th data-priority="persist">Nmbr/Msg</th>
             <th data-priority="persist">Name</th>
           </thead>
           <tbody>
           </tbody>
         </table>
       </div>
-
     </div>
-<!--    <ul id="messages"></ul>
-    <form action="">
-      <input id="m" autocomplete="off" /><button>Send</button>
-    </form>
-    <script src="http://code.jquery.com/jquery-1.11.1.js"></script> -->
+
     <script>
+      var ua = navigator.userAgent,
+      device = {
+        iPad: /iPad/.test(ua),
+        iPhone: /iPhone/.test(ua),
+        Android: /Android/.test(ua),
+        Mac: /Macintosh/.test(ua),
+        Linux: /Linux/.test(ua),
+        Windows: /Windows/.test(ua)
+      };
+
+      var NCIDlineID = "Web";
+
+      if (device.iPad) NCIDlineID = "iPad";
+      if (device.iPhone) NCIDlineID = "iPhone";
+      if (device.Mac) NCIDlineID = "Mac";
+      if (device.Linux) NCIDlineID = "Linux";
+      if (device.Windows) NCIDlineID = "Windows";
+      if (device.Android) NCIDlineID = "Android";
+
+      // Notification.requestPermission().then(function(result) { // request permission for host OS notifications
+      //   console.log("host notifications :" + result);
+      // });
+
       var socket = io();
-//      $('form').submit(function(){
-//        socket.emit('user message', $('#m').val());
-//        $('#m').val('');
-//        return false;
- //     }); 
+
       socket.on('ncidCMD', function(msg){
       		if (msg === "clear"){
       		$('#calllog > tbody').html("");
       	}
       });
-      socket.on('ncidInfo', function(msg){
+
+      socket.on('ncidWCVersion', function(msg){ //show version in header
+       //   console.log('version info: ' + msg);
+          var title = $(document).prop('title');
+       //   console.log(title);
+          $(".ui-header .ui-title").text(title+' v'+msg);
+      });
+
+      socket.on('nciddVersion', function(msg){ //NCID server version packet arrived
+           console.log('nciddVersion '+ msg);
+          $('#nciddStatus').html('<p>' + msg + '</p>');
+      });
+
+      socket.on('ncidInfo', function(msg){ //ncid json packet arrived
         var trowData = '';
-        console.log(msg);
+        var notificationBody = '';
         msg = $.parseJSON(msg); // convert stringified packet back to JSON
+
+        console.log(msg);
 
         trowData = '<tr><td>' + msg.ncidtype  +'</td>';
         trowData +=  '<td>' + msg.date + ' ' + msg.time  +'</td>'; 
+
+        notificationBody = msg.ncidtype;
 
         switch (msg.ncidtype) {
           case "CID":
@@ -74,21 +116,54 @@
             trowData +=  '<td>' + msg.line  +'</td>';
             trowData +=  '<td>' + msg.nmbr  +'</td>';
             trowData +=  '<td>' + msg.name  +'</td></tr>';
+
+            notificationBody += ' ' + msg.nmbr + ' ' + msg.name;
+
             break;  
           case "MSG":
           case "NOT":  //"message" type information in packet
-            trowData += '<td colspan="3">' + msg.mesg + '</td></tr>'; 
-            console.log(trowData);
+            trowData += '<td>' +  msg.line + '</td>';
+            trowData += '<td colspan="2">' + msg.mesg + '</td></tr>'; 
+
+            notificationBody += ' ' + msg.mesg;
+
+           // console.log(trowData);
             break;
           default:
               console.log("unknown packet");
             return 0; // packet type that we don't care about for now, packet headed for bit-bucket
         }
         $('table#calllog tbody').prepend(trowData)
-        .closest("table#calllog")
+        .closest("table#calllog")  // refresh the DOM that user sees
         .table("refresh")
         .trigger("create");
- //       $('#messages').prepend($('<li>').text(msg));
+
+        if (msg.newpkt){ // item is not from a call_log; may need to display notification
+          if(window.Notification && Notification.permission !== "denied") {
+            Notification.requestPermission(function(status) {  // status is "granted", if accepted by user
+              var n = new Notification('NCIDwebclient', { 
+                body: notificationBody,
+                icon: 'favicon.ico'
+              }); 
+            });
+          }
+        }
+        msg = {}; //toss the contents
+      });
+
+      socket.on('reconnecting', function(msg){
+          console.log('socket.io connection issue '+ msg);
+          $('#nciddStatus').html('<p> <font color ="red"> Not connected to NCIDwebclient gateway </font> </p>');
+      });
+
+      $(".mySubmit").click(function(event){
+        event.preventDefault();
+        var msgToSend = $("#ncidMsg").val();
+        $("#ncidMsg").val("");
+        msgToSend = 'MSG: '+ msgToSend + ' ###LINE*' + NCIDlineID + '*';
+        $("#popupMessage").popup("close");
+        socket.emit('user message', msgToSend)
+        //alert(msgToSend);
       });
     </script>
   </body>
